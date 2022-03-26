@@ -1,128 +1,104 @@
-from sqlite3 import Timestamp
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_restx import Api, Resource, fields
-import os
-from flask_cors import CORS
+import base64
+from io import BytesIO
+import io 
+
+from flask import Flask
+from matplotlib.figure import Figure
+import requests
 
 app = Flask(__name__)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1)
-db = SQLAlchemy(app)
 CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
-@app.route('/test')
-def hello():
-  return "test"
+def display(fig):
+    # Save it to a temporary buffer.
+    buf = BytesIO()
 
-# @app.route('/hello')
-# def hello():
-#   return "Hello World!"
+    fig.savefig(buf, format="png")
+    # Embed the result in the html output.
+    data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    return f"<img src='data:image/png;base64,{data}'/>"
 
-# # Item
-# class Item(db.Model):
-#   id = db.Column(db.Integer, primary_key=True)
-#   title = db.Column(db.String(80), unique=True, nullable=False)
-#   content = db.Column(db.String(120), unique=True, nullable=False)
+@app.route("/basic")
+def basic():
+    # Generate the figure **without using pyplot**.
+    fig = Figure()
+    ax = fig.subplots()
+    ax.plot([1, 3, 2], [0.1, 0.2, 0.3])
 
-#   def __init__(self, title, content):
-#     self.title = title
-#     self.content = content
+    return display(fig)
 
-#   @app.route('/items/<id>', methods=['GET'])
-#   def get(id):
-#     item = Item.query.get(id)
-#     del item.__dict__['_sa_instance_state']
-#     return jsonify(item.__dict__)
+@app.route("/fetch")
+def fetch():
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
-#   @app.route('/items', methods=['GET'])
-#   def get_items():
-#     items = []
-#     for item in db.session.query(Item).all():
-#       del item.__dict__['_sa_instance_state']
-#       items.append(item.__dict__)
-#     print(items)
-#     return jsonify(items)
+    # READ
+    df = pd.read_csv('local.csv').to_dict()
+    fig = Figure()
+    ax = fig.subplots()
 
-#   @app.route('/items', methods=['POST'])
-#   def create_item():
-#     body = request.get_json()
-#     db.session.add(Item(body['title'], body['content']))
-#     db.session.commit()
-#     return "item created"
+    # PLOT
+    ax.plot(list(df['DATE'].values()),list(df['TAVG'].values()))
 
-#   @app.route('/items/<id>', methods=['PUT'])
-#   def update_item(id):
-#     body = request.get_json()
-#     db.session.query(Item).filter_by(id=id).update(
-#       dict(title=body['title'], content=body['content']))
-#     db.session.commit()
-#     return "item updated"
+    # ADDING LABELS
+    ax.set(xlabel='Date', ylabel='Average Temperature')
 
-#   @app.route('/items/<id>', methods=['DELETE'])
-#   def delete_item(id):
-#     db.session.query(Item).filter_by(id=id).delete()
-#     db.session.commit()
-#     return "item deleted"
+    ## Adding Title
+    ax.set_title("New York")
+    
+    # RETURN
+    return display(fig)
 
-# Entry
-    # SpO2: float
-    # HR: integer
-    # updated_at: timestamp
+@app.route("/scatter")
+def scatter():
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
+    # READ
+    df = pd.read_csv('local.csv').to_dict()
+    fig = Figure()
+    ax = fig.subplots()
 
+    # PLOT
+    ax.scatter(list(df['DATE'].values()),list(df['TAVG'].values()), s=2)
 
-class Entry(db.Model):
-  id = db.Column(db.Integer, primary_key=True)
-  device = db.Column(db.String(80), unique=False, nullable=False)
-  spo2 = db.Column(db.Float, unique=False, nullable=True)
-  hr = db.Column(db.Float, unique=False, nullable=True)
-  timestamp = db.Column(db.DateTime, unique=True, nullable=False)
+    # ADDING LABELS
+    ax.set(xlabel='Date', ylabel='Average Temperature')
 
-  def __init__(self, device, spo2, hr, timestamp):
-    self.device = device
-    self.spo2 = spo2
-    self.hr = hr
-    self.timestamp = timestamp
+    ## Adding Title
+    ax.set_title("New York")
+    
+    # RETURN
+    return display(fig)
 
-  @app.route('/items/<id>', methods=['GET'])
-  def get(id):
-    item = Entry.query.get(id)
-    del item.__dict__['_sa_instance_state']
-    return jsonify(item.__dict__)
+@app.route("/live")
+def live():
+    import pandas as pd
+    import matplotlib.pyplot as plt
 
-  @app.route('/items', methods=['GET'])
-  def get_items():
-    items = []
-    for item in db.session.query(Entry).all():
-      del item.__dict__['_sa_instance_state']
-      items.append(item.__dict__)
-    print(items)
-    return jsonify(items)
+    # READ
+    url = 'http://raw.githubusercontent.com/benchan911/public/main/local.csv'
+    res = requests.get(url)
+    df = pd.read_csv(io.BytesIO(res.content)).to_dict()
 
-  @app.route('/items', methods=['POST'])
-  def create_item():
-    body = request.get_json()
-    db.session.add(Entry(body['device'], body['spo2'], body['hr'], body['timestamp']))
-    db.session.commit()
-    return "item created"
+    # df = pd.read_csv().to_dict()
+    fig = Figure()
+    ax = fig.subplots()
 
-  @app.route('/items/<id>', methods=['PUT'])
-  def update_item(id):
-    body = request.get_json()
-    db.session.query(Entry).filter_by(id=id).update(
-      dict(device = body['device'], spo2=body['spo2'], hr=body['hr'], timestamp=body['timestamp']))
-    db.session.commit()
-    return "item updated"
+    # PLOT
+    ax.scatter(list(df['DATE'].values()),list(df['TAVG'].values()), s=2)
 
-  @app.route('/items/<id>', methods=['DELETE'])
-  def delete_item(id):
-    db.session.query(Entry).filter_by(id=id).delete()
-    db.session.commit()
-    return "item deleted"
+    # ADDING LABELS
+    ax.set(xlabel='Date', ylabel='Average Temperature')
 
-db.create_all()
-
+    ## Adding Title
+    ax.set_title("New York")
+    
+    # RETURN
+    return display(fig)
+    
+    
+    
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=80)

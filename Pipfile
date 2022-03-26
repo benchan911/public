@@ -11,6 +11,7 @@ Flask = "*"
 Flask-SQLAlchemy = "*"
 Flask-Cors = "*"
 gunicorn = "*"
+matplotlib = "*"
 
 [dev-packages]
 
