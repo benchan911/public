@@ -12,6 +12,7 @@ Flask-SQLAlchemy = "*"
 Flask-Cors = "*"
 gunicorn = "*"
 matplotlib = "*"
+pandas = "*"
 
 [dev-packages]
 
