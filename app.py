@@ -7,8 +7,6 @@ from matplotlib.figure import Figure
 import requests
 
 app = Flask(__name__)
-CORS(app)
-app.config['CORS_HEADERS'] = 'Content-Type'
 
 def display(fig):
     # Save it to a temporary buffer.
