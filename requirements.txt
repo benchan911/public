@@ -6,3 +6,4 @@ requests
 flask-cors
 matplotlib
 pandas
+gunicorn
